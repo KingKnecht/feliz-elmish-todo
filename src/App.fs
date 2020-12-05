@@ -224,74 +224,80 @@ let saveButton (todo: Todo) (dispatch: Msg -> unit) =
 
 
 let todoItem (todo: Todo) (dispatch: Msg -> unit) =
-  div [ "box" ] [
-    div [ "columns"
-          "is-mobile"
-          "is-vcentered" ] [
-      div [ "column" ] [
-
-        Html.div [
-          prop.style [
-            if todo.IsEditing then style.display.block else style.display.none
-          ]
-          prop.classes [ "field"; "has-addons" ]
+  Bulma.box [
+    Bulma.columns [
+          columns.isMobile
+          prop.classes [Bulma.IsVcentered]
           prop.children [
-            Html.div [
-              prop.classes [
-                "control"
-                "is-expanded"
-              ]
+            Bulma.column [
               prop.children [
-                Html.input [
-                  prop.classes [ "input"; "is-medium" ]
-                  prop.valueOrDefault todo.Description
-                  prop.onTextChange (fun str -> dispatch (SetDescription(todo.Id, str)))
+                Html.div [
+                  prop.style [
+                    if todo.IsEditing then style.display.block else style.display.none
+                  ]
+                  prop.classes [ "field"; "has-addons" ]
+                  prop.children [
+                    Html.div [
+                      prop.classes [
+                        "control"
+                        "is-expanded"
+                      ]
+                      prop.children [
+                        Html.input [
+                          prop.classes [ "input"; "is-medium" ]
+                          prop.valueOrDefault todo.Description
+                          prop.onTextChange (fun str -> dispatch (SetDescription(todo.Id, str)))
+                        ]
+                      ]
+                    ]
+                  ]
+                ]
+
+                Html.p [
+                  prop.style [
+                    if todo.IsEditing then style.display.none else style.display.block
+                  ]
+                  prop.classes [ "subtitle" ]
+                  prop.text todo.Description
                 ]
               ]
             ]
-          ]
-        ]
 
-        Html.p [
-          prop.style [
-            if todo.IsEditing then style.display.none else style.display.block
-          ]
-          prop.classes [ "subtitle" ]
-          prop.text todo.Description
-        ]
-      ]
+            div [ "column"; "is-narrow" ] [
+              div [ "buttons" ] [
+                Html.button [
+                  prop.classes [
+                    Bulma.Button
+                    if todo.Completed then "is-success"
+                  ]
+                  prop.onClick (fun _ -> dispatch (ToggleCompleted todo.Id))
+                  prop.children [
+                    Html.i [
+                      prop.classes [ Bulma.Fa; FA.FaCheck ]
+                    ]
+                  ]
+                ]
 
-      div [ "column"; "is-narrow" ] [
-        div [ "buttons" ] [
-          Html.button [
-            prop.classes [
-              Bulma.Button
-              if todo.Completed then "is-success"
-            ]
-            prop.onClick (fun _ -> dispatch (ToggleCompleted todo.Id))
-            prop.children [
-              Html.i [
-                prop.classes [ Bulma.Fa; FA.FaCheck ]
+                if todo.IsEditing then saveButton todo dispatch else editButton todo dispatch
+
+                Html.button [
+                  prop.classes [
+                    Bulma.Button
+                    Bulma.IsDanger
+                  ]
+                  prop.onClick (fun _ -> dispatch (DeleteTodo todo.Id))
+                  prop.children [
+                    Html.i [
+                      prop.classes [ "fa"; "fa-times" ]
+                    ]
+                  ]
+                ]
               ]
             ]
-          ]
 
-          if todo.IsEditing then saveButton todo dispatch else editButton todo dispatch
 
-          Html.button [
-            prop.classes [
-              Bulma.Button
-              Bulma.IsDanger
-            ]
-            prop.onClick (fun _ -> dispatch (DeleteTodo todo.Id))
-            prop.children [
-              Html.i [
-                prop.classes [ "fa"; "fa-times" ]
-              ]
-            ]
+
           ]
-        ]
-      ]
     ]
   ]
 
