@@ -226,50 +226,51 @@ let saveButton (todo: Todo) (dispatch: Msg -> unit) =
 let todoItem (todo: Todo) (dispatch: Msg -> unit) =
   Bulma.box [
     Bulma.columns [
-          columns.isMobile
-          prop.classes [Bulma.IsVcentered]
+      columns.isMobile
+      prop.classes [ Bulma.IsVcentered ]
+      prop.children [
+        Bulma.column [
           prop.children [
-            Bulma.column [
+            Html.div [
+              prop.style [
+                if todo.IsEditing then style.display.block else style.display.none
+              ]
+              prop.classes [ "field"; "has-addons" ]
               prop.children [
                 Html.div [
-                  prop.style [
-                    if todo.IsEditing then style.display.block else style.display.none
+                  prop.classes [
+                    "control"
+                    Bulma.IsExpanded
                   ]
-                  prop.classes [ "field"; "has-addons" ]
                   prop.children [
-                    Html.div [
-                      prop.classes [
-                        "control"
-                        "is-expanded"
-                      ]
-                      prop.children [
-                        Html.input [
-                          prop.classes [ "input"; "is-medium" ]
-                          prop.valueOrDefault todo.Description
-                          prop.onTextChange (fun str -> dispatch (SetDescription(todo.Id, str)))
-                        ]
-                      ]
+                    Html.input [
+                      input.isMedium
+                      prop.valueOrDefault todo.Description
+                      prop.onTextChange (fun str -> dispatch (SetDescription(todo.Id, str)))
                     ]
                   ]
-                ]
-
-                Html.p [
-                  prop.style [
-                    if todo.IsEditing then style.display.none else style.display.block
-                  ]
-                  prop.classes [ "subtitle" ]
-                  prop.text todo.Description
                 ]
               ]
             ]
 
-            div [ "column"; "is-narrow" ] [
-              div [ "buttons" ] [
-                Html.button [
-                  prop.classes [
-                    Bulma.Button
-                    if todo.Completed then "is-success"
-                  ]
+            Html.p [
+              prop.style [
+                if todo.IsEditing then style.display.none else style.display.block
+              ]
+              prop.classes [Bulma.Subtitle ]
+              prop.text todo.Description
+            ]
+          ]
+        ]
+
+        Bulma.column [
+          column.isNarrow
+          prop.children [
+            Bulma.buttons [
+              
+              prop.children [
+                Bulma.button.button [
+                  prop.classes [if todo.Completed then Bulma.IsSuccess]
                   prop.onClick (fun _ -> dispatch (ToggleCompleted todo.Id))
                   prop.children [
                     Html.i [
@@ -280,24 +281,20 @@ let todoItem (todo: Todo) (dispatch: Msg -> unit) =
 
                 if todo.IsEditing then saveButton todo dispatch else editButton todo dispatch
 
-                Html.button [
-                  prop.classes [
-                    Bulma.Button
-                    Bulma.IsDanger
-                  ]
+                Bulma.button.button [  
+                  prop.classes [Bulma.IsDanger]
                   prop.onClick (fun _ -> dispatch (DeleteTodo todo.Id))
                   prop.children [
                     Html.i [
-                      prop.classes [ "fa"; "fa-times" ]
+                      prop.classes [ FA.Fa; FA.FaTimes ]
                     ]
                   ]
                 ]
               ]
             ]
-
-
-
           ]
+        ]
+      ]
     ]
   ]
 
