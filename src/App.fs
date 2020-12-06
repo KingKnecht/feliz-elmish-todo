@@ -191,7 +191,7 @@ let inputField (state: UndoState) (dispatch: UndoMsg -> unit) =
             prop.onClick (fun _ -> subDispatch AddNewTodo)
             prop.children [
               Html.i [
-                prop.classes [ "fa"; "fa-plus" ]
+                prop.classes [FA.Fa; FA.FaPlus ]
               ]
             ]
           ]
@@ -312,15 +312,6 @@ let todoList (state: State) (dispatch: Msg -> unit) =
       for todo in state.TodoList -> todoItem todo dispatch
     ]
   ]
-
-// let undoList (state: UndoState) (dispatch: UndoMsg -> unit) =
-//   Html.ul [
-//     prop.children [
-//       for e in (UndoList.toList state) ->
-//         let (_, meta) = e
-//         Html.p meta.Description
-//     ]
-//   ]
 
 let undoList (state: UndoState) (dispatch: UndoMsg -> unit) =
 
