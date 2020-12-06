@@ -47,8 +47,7 @@ type UndoState = UndoRedo.UndoList<State>
 type UndoMsg = UndoRedo.UndoMsg<Msg>
 
 let undoInit () =
-  UndoList.new' (Visible(init (), Meta.new' "Init"))
-
+  UndoList.new' (init (), Meta.new' "Init")
 
 let update (msg: UndoMsg) (undoState: UndoState): UndoState =
   match msg with

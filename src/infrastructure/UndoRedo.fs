@@ -2,12 +2,12 @@ namespace UndoRedo
 
 open System
 
-type Meta = { 
-  Description: string
-  Id: Guid }
+type Meta = { Description: string; Id: Guid }
 
 module Meta =
-  let new' description = {Description = description; Id = Guid.NewGuid()}
+  let new' description =
+    { Description = description
+      Id = Guid.NewGuid() }
 
 type Mark<'T> =
   | Past of 'T * Meta
@@ -15,9 +15,9 @@ type Mark<'T> =
   | Future of 'T * Meta
 
 type StateType<'T> =
-  | Visible of 'T * Meta
-  | Invisible of 'T * Meta
-  | Transaction of 'T * Meta
+  | Visible of 'T
+  | Invisible of 'T
+  | Transaction of 'T
 
 module StateType =
 
@@ -26,8 +26,6 @@ module StateType =
     | Visible (t, m) -> t, m
     | Invisible (t, m) -> t, m
     | Transaction (t, m) -> t, m
-
-  let map (s: StateType<'T>) f = f (returnFrom s)
 
   let isTransaction s =
     match s with
@@ -51,17 +49,18 @@ type UndoMsg<'Msg> =
   | Msg of 'Msg
 
 type UndoList<'T> =
-  { Past: StateType<'T> list
-    Present: StateType<'T>
-    Future: StateType<'T> list }
+  { Past: ('T * Meta) list
+    Present: StateType<('T * Meta)>
+    Future: ('T * Meta) list } //Latest element is always last item in list.
+
 
 module UndoList =
 
   let (|IsVisible|) value =
     match value with
-    | Visible (t, m)
-    | Transaction (t, m) -> true
-    | Invisible (t, m) -> false
+    | Visible (_) -> true
+    | Transaction (_) -> true
+    | Invisible (_) -> false
 
   let present ul = StateType.returnFrom ul.Present
 
@@ -85,65 +84,89 @@ module UndoList =
         let (_, m) = StateType.returnFrom ul.Present
         Some(m)
 
+  let private forgetPresent ul =
+    //Todo: Check list empty
+    { ul with
+        Present = Visible(ul.Past |> List.head)
+        Past = ul.Past.Tail }
+
   let push ul state =
     let oldMeta = ul.Present |> StateType.meta
     let newState = state |> StateType.state
-    match ul.Present with
-    | Transaction (t, m) ->
-        { ul with
-            Past = ul.Past
-            Present = Transaction(newState, oldMeta)
-            Future = [] }
-    | Visible (v, m) ->
-        { ul with
-            Past = ul.Present :: ul.Past
-            Present = state
-            Future = [] }
-    | Invisible (_) ->
-        { ul with
-            Past = ul.Past
-            Present = state
-            Future = [] }
+    match state with
+    | Visible _
+    | Transaction _ ->
+        match ul.Present with
+        | Transaction (t, m) ->
+            { ul with
+                Past = ul.Past
+                Present = Transaction(newState, oldMeta) }
+        | Visible (v, m) ->
+            { ul with
+                Past = (ul.Present |> StateType.returnFrom) :: ul.Past //FYI: Latest state is always first element in the past list.
+                Present = state }
+        | Invisible (_) ->
+            { ul with
+                Past = ul.Past
+                Present = state
+                Future = [] }
+    | Invisible _ ->
+        match ul.Present with
+        | Transaction (t, m) ->
+            { ul with
+                Past = ul.Past
+                Present = Transaction(newState, oldMeta)
+            }
+        | Visible (v, m) ->
+            { ul with
+                Past = (ul.Present |> StateType.returnFrom) :: ul.Past //FYI: Latest state is always first element in the past list.
+                Present = state }
+        | Invisible (_) ->
+            { ul with
+                Past = ul.Past
+                Present = state }
+
+
+  //Past  Pres Future
+  //[3;2;1] v(4) [] -> Past[2;1]; Present 3; Future [4]
+  //[3;2;1] t(4) [] -> Past[2;1]; Present 3; Future [4]
+  //[3;2;1] i(4) [] -> Past[2;1]; Present 3; Future []
 
   let undo ul =
-    let rec recUndo ul =
-      match ul.Past with
-      | [] -> ul
-      | head :: tail ->
-          let ul' =
-            { ul with
-                Past = tail
-                Present = head
-                Future = ul.Present :: ul.Future }
+    let innerUndo ul = { ul with
+                          Past = ul.Past |> List.tail
+                          Present = Visible(ul.Past |> List.head)
+                          Future =
+                            [ (ul.Present |> StateType.returnFrom) ]
+                            @ ul.Future }
+    match ul.Present with
+    | Invisible _ ->
+                    ul |> forgetPresent |> innerUndo
+    | Visible _
+    | Transaction _ -> ul |> innerUndo
+        
 
-          match head with
-          | Visible (t, m)
-          | Transaction (t, m) -> ul'
-          | Invisible (t, m) -> recUndo ul'
-
-    recUndo ul
+  //Past  Pres Future
+  //[1] v(2) [3;4] -> Past[2;1]; Present 3; Future [4]
+  //[1] t(2) [3;4] -> Past[2;1]; Present 3; Future [4]
+  //[1] i(5) [3;4] -> Past[1]; Present 5; Future []
 
   let redo ul =
-    let rec recRedo ul =
-      match ul.Future with
-      | [] -> ul
-      | head :: tail ->
-          let ul' =
-            { ul with
-                Past = ul.Present :: ul.Past
-                Present = head
-                Future = tail }
-
-          match head with
-          | Visible (t, m)
-          | Transaction (t, m) -> ul'
-          | Invisible (t, m) -> recRedo ul'
-
-    recRedo ul
+    match ul.Present with
+    | Invisible _ ->
+        { ul with
+            Past = ul.Past |> List.tail
+            Present = Visible(ul.Past |> List.head) }
+    | Visible _
+    | Transaction _ ->
+        { ul with
+            Past = (ul.Present |> StateType.returnFrom) :: ul.Past
+            Present = Visible(ul.Future |> List.head)
+            Future = ul.Future |> List.tail }
 
   let new' present =
     { Past = List.empty
-      Present = present
+      Present = Visible(present)
       Future = List.Empty }
 
   let startTransaction ul description =
@@ -151,67 +174,67 @@ module UndoList =
     | Transaction _ -> ul
     | Visible (_, m)
     | Invisible (_, m) ->
-        let (s, _) = StateType.returnFrom (ul.Present)
-        push ul (Transaction(s, { m with Description = description }))
+        let ul' = ul |> forgetPresent
+        let (s, _) = StateType.returnFrom (ul'.Present)
+        push ul' (Transaction(s, { m with Description = description }))
 
-  let private forgetPresent ul =
-    { ul with
-        Present = ul.Past |> List.last
-        Past = ul.Past.Tail
-        Future = [] }
+
 
   let endTransaction ul =
     match ul.Present with
-    | Transaction (t, m) ->
-        if ul.Past |> List.last |> StateType.state = t then
+    | Transaction t ->
+        if (ul.Past |> List.last) = t then
           //Nothing has changed here.
           forgetPresent ul
         else
-          { ul with
-              Present = (Visible(StateType.returnFrom (ul.Present))) }
+          match ul.Present with
+          | Invisible _ -> ul |> forgetPresent //invisible states (e.g. edits in input box) must be forgotten.
+          | Visible _
+          | Transaction _ ->
+              { ul with
+                  Present = (Visible(StateType.returnFrom (ul.Present))) }
     | _ -> ul
 
   let cancelTransaction ul =
     match ul.Present with
-    | Transaction (t, m) -> forgetPresent ul
+    | Transaction t -> forgetPresent ul
     | _ -> ul
 
-  let hasPast ul = ul.Past |> List.exists (|IsVisible|)
+  let hasPast ul =
+    match ul.Past with
+    | [] -> false
+    | _ -> true
 
   let canUndo ul =
     match ul.Present with
-    | Invisible (_) ->
-        let visibleCount = List.filter (|IsVisible|) >> List.length
-        ul.Past |> visibleCount > 1
+    | Invisible (_) -> ul.Past |> List.length > 1
     | _ -> ul |> hasPast
 
-  let hasFuture ul = ul.Future |> List.exists (|IsVisible|)
+  let hasFuture ul =
+    match ul.Future with
+    | [] -> false
+    | _ -> true
 
   let canRedo ul = ul |> hasFuture
 
   let isTransactionRunning ul = ul.Present |> StateType.isTransaction
 
-  let toList ul =
-    List.rev ul.Past
-    @ [ ul.Present ]
-    @ ul.Future
-    |> List.filter (|IsVisible|)
-    |> List.map StateType.returnFrom
-
   let toTimedList ul =
-    let pastAndPresent =
-      (ul.Past |> List.filter (|IsVisible|) |> List.rev)
-      @ ([ ul.Present ] |> List.filter (|IsVisible|))
-      |> List.rev
+    let presentToList p =
+      match p with
+      | Visible t -> [ t ]
+      | Transaction t -> [ t ]
+      | Invisible _ -> []
 
-    let future = ul.Future |> List.filter (|IsVisible|)
+    let pastAndPresent ul =
+      match ul.Present with
+      | Invisible _ ->
+          (ul.Past |> List.tail |> List.rev |> List.map Past)
+          @ ([ ul.Past |> List.head |> Present ])
+      | Visible _
+      | Transaction _ ->
+          (ul.Past |> List.rev |> List.map Past)
+          @ ([ ul.Present |> StateType.returnFrom |> Present ])
 
-    match pastAndPresent with
-    | [] -> failwith "This can not happen :-/"
-
-    | x :: xs ->
-        (future
-           |> List.map (fun f -> (StateType.map f Future)))
-        @ [ (StateType.map x Present) ]
-        @ (xs |> List.map (fun p -> (StateType.map p Past)))
-        
+    (ul |> pastAndPresent)
+    @ (ul.Future |> List.map Future)
