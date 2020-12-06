@@ -144,7 +144,10 @@ let update (msg: UndoMsg) (undoState: UndoState): UndoState =
 //
 let appTitle =
   Html.p [
-    prop.className "title"
+    prop.classes [
+      Bulma.IsCentered
+      Bulma.Title
+    ]
     prop.text "Elmish To-Do List with Undo/Redo"
   ]
 
@@ -231,11 +234,11 @@ let todoItem (todo: Todo) (dispatch: Msg -> unit) =
       prop.children [
         Bulma.column [
           prop.children [
-            Html.div [
+            Bulma.fieldLabel [
               prop.style [
                 if todo.IsEditing then style.display.block else style.display.none
               ]
-              prop.classes [ "field"; "has-addons" ]
+              prop.classes [ Bulma.HasAddons ]
               prop.children [
                 Html.div [
                   prop.classes [
@@ -243,7 +246,7 @@ let todoItem (todo: Todo) (dispatch: Msg -> unit) =
                     Bulma.IsExpanded
                   ]
                   prop.children [
-                    Html.input [
+                    Bulma.input.text [
                       input.isMedium
                       prop.valueOrDefault todo.Description
                       prop.onTextChange (fun str -> dispatch (SetDescription(todo.Id, str)))
@@ -257,7 +260,7 @@ let todoItem (todo: Todo) (dispatch: Msg -> unit) =
               prop.style [
                 if todo.IsEditing then style.display.none else style.display.block
               ]
-              prop.classes [Bulma.Subtitle ]
+              prop.classes [ Bulma.Subtitle ]
               prop.text todo.Description
             ]
           ]
@@ -267,10 +270,12 @@ let todoItem (todo: Todo) (dispatch: Msg -> unit) =
           column.isNarrow
           prop.children [
             Bulma.buttons [
-              
+
               prop.children [
                 Bulma.button.button [
-                  prop.classes [if todo.Completed then Bulma.IsSuccess]
+                  prop.classes [
+                    if todo.Completed then Bulma.IsSuccess
+                  ]
                   prop.onClick (fun _ -> dispatch (ToggleCompleted todo.Id))
                   prop.children [
                     Html.i [
@@ -281,8 +286,8 @@ let todoItem (todo: Todo) (dispatch: Msg -> unit) =
 
                 if todo.IsEditing then saveButton todo dispatch else editButton todo dispatch
 
-                Bulma.button.button [  
-                  prop.classes [Bulma.IsDanger]
+                Bulma.button.button [
+                  prop.classes [ Bulma.IsDanger ]
                   prop.onClick (fun _ -> dispatch (DeleteTodo todo.Id))
                   prop.children [
                     Html.i [
@@ -318,63 +323,129 @@ let todoList (state: State) (dispatch: Msg -> unit) =
 //   ]
 
 let undoList (state: UndoState) (dispatch: UndoMsg -> unit) =
-  Bulma.box [
-    //prop.style [ style.margin 0 ]
 
+  Bulma.panel [
+    //prop.style [ style.marginLeft 0 ]
     prop.children [
+      Bulma.panelHeading [
+        Html.text "Undo Redo Stack"
+      ]
 
-      Bulma.panel [
+      for e in (state |> UndoList.toTimedList) do
+        match e with
+        | Past (s, m) ->
+            Bulma.panelBlock.a [
+              Html.text (m.Description + " (past)")
+            ]
+        | Present (s, m) ->
+            Html.div [
+              prop.style [
+                style.backgroundColor color.lightGray
+              ]
+              prop.classes [ Bulma.PanelBlock ]
+              prop.children [
+                Html.text (m.Description + " (present)")
+              ]
+            ]
+        | Future (s, m) ->
+            Bulma.panelBlock.a [
+              Html.text (m.Description + " (future)")
+            ]
+    ]
+  ]
 
-        Bulma.panelHeading [
-          Html.text "Undo Redo Stack"
+let undoTransactionButtons (state: UndoState) (dispatch: UndoMsg -> unit) =
+  Bulma.columns [
+
+    Bulma.column [
+      column.isOneThird
+      prop.children [
+        Bulma.button.button [
+          button.isFullWidth
+          prop.text "Start transaction"
+          prop.disabled (state |> UndoList.isTransactionRunning)
+          prop.onClick (fun _ -> dispatch StartTransaction)
         ]
+      ]
+    ]
 
-        for e in (state |> UndoList.toTimedList) do
-          match e with
-          | Past (s, m) ->
-              Bulma.panelBlock.a [
-                Html.text (m.Description + " (past)")
-              ]
-          | Present (s, m) ->
-              Html.div [
-                prop.style [
-                  style.backgroundColor color.lightGray
-                ]
-                prop.classes [ Bulma.PanelBlock ]
-                prop.children [
-                  Html.text (m.Description + " (present)")
-                ]
-              ]
-          | Future (s, m) ->
-              Bulma.panelBlock.a [
-                Html.text (m.Description + " (future)")
-              ]
+    Bulma.column [
+      column.isOneThird
+      prop.children [
+        Bulma.button.button [
+          button.isFullWidth
+          prop.disabled (state |> UndoList.isTransactionRunning |> not)
+          prop.text "Cancel transaction"
+          prop.onClick (fun _ -> dispatch CancelTransaction)
+        ]
+      ]
+    ]
+
+    Bulma.column [
+      column.isOneThird
+      prop.children [
+        Bulma.button.button [
+          button.isFullWidth
+          prop.disabled (state |> UndoList.isTransactionRunning |> not)
+          prop.text "End transaction"
+          prop.onClick (fun _ -> dispatch EndTransaction)
+        ]
       ]
     ]
   ]
 
+let undoRedoButtons (state: UndoState) (dispatch: UndoMsg -> unit) =
+  Bulma.columns [
 
+    Bulma.column [
+      column.isHalf
+      prop.children [
+        Bulma.button.button [
+          button.isFullWidth
+          prop.text "Undo"
+          prop.disabled (state |> UndoList.canUndo |> not)
+          prop.onClick (fun _ -> dispatch Undo)
+        ]
+      ]
+    ]
+
+    Bulma.column [
+      column.isHalf
+      prop.children [
+        Bulma.button.button [
+          button.isFullWidth
+          prop.text "Redo"
+          prop.disabled (state |> UndoList.canRedo |> not)
+          prop.onClick (fun _ -> dispatch Redo)
+        ]
+      ]
+    ]
+  ]
+
+let undoStack (state: UndoState) (dispatch: UndoMsg -> unit) =
+  Bulma.column [
+    prop.style [
+      style.marginLeft 0
+      style.paddingLeft 0
+      style.paddingRight 0
+    //style.paddingTop 0
+    ]
+    prop.children [
+      undoList state dispatch
+    ]
+  ]
 
 let render (state: UndoState) (dispatch: UndoMsg -> unit) =
-  // Bulma.panel [
-  //   Bulma.panelHeading [
-  //     Html.text "foo"
-  //   ]
-  //   Bulma.panelBlock.div [
-  //     Html.text "foo"
-  //   ]
-  // ]
-
-
 
   let subState = state |> UndoList.presentState
   let subDispatch msg = (dispatch (Msg msg))
 
   Bulma.hero [
     prop.style [ style.padding 20 ]
-    //prop.classes ["is-fullheight"]
     prop.children [
+
       appTitle
+
       Bulma.columns [
 
         Bulma.column [
@@ -387,78 +458,14 @@ let render (state: UndoState) (dispatch: UndoMsg -> unit) =
         Bulma.column [
           column.is5
           prop.children [
-            Bulma.columns [
-              Bulma.column [
-                column.isHalf
-                prop.children [
-                  Bulma.button.button [
-                    button.isFullWidth
-                    prop.text "Undo"
-                    prop.disabled (state |> UndoList.canUndo |> not)
-                    prop.onClick (fun _ -> dispatch Undo)
-                  ]
-                ]
-
-              ]
-              Bulma.column [
-                column.isHalf
-                prop.children [
-                  Bulma.button.button [
-                    button.isFullWidth
-                    prop.text "Redo"
-                    prop.disabled (state |> UndoList.canRedo |> not)
-                    prop.onClick (fun _ -> dispatch Redo)
-                  ]
-                ]
-              ]
-            ]
-            Bulma.columns [
-              Bulma.column [
-                column.isOneThird
-                prop.children [
-                  Bulma.button.button [
-                    button.isFullWidth
-                    prop.text "Start transaction"
-                    prop.disabled (state |> UndoList.isTransactionRunning)
-                    prop.onClick (fun _ -> dispatch StartTransaction)
-                  ]
-                ]
-
-              ]
-              Bulma.column [
-                column.isOneThird
-                prop.children [
-                  Bulma.button.button [
-                    button.isFullWidth
-                    prop.disabled (state |> UndoList.isTransactionRunning |> not)
-                    prop.text "Cancel transaction"
-                    prop.onClick (fun _ -> dispatch CancelTransaction)
-                  ]
-                ]
-              ]
-              Bulma.column [
-                column.isOneThird
-                prop.children [
-                  Bulma.button.button [
-                    button.isFullWidth
-                    prop.disabled (state |> UndoList.isTransactionRunning |> not)
-                    prop.text "End transaction"
-                    prop.onClick (fun _ -> dispatch EndTransaction)
-                  ]
-                ]
-              ]
-            ]
-
-            Bulma.column [ undoList state dispatch ]
+            undoRedoButtons state dispatch
+            undoTransactionButtons state dispatch
+            undoStack state dispatch
           ]
-
         ]
       ]
     ]
   ]
-
-
-
 
 // Program.mkSimple undoInit update render
 // |> Program.withReactSynchronous "elmish-app"
