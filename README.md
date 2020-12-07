@@ -6,6 +6,7 @@ Todo list is taken from the great book [The Elmish Book](https://zaid-ajaj.githu
 UndoList is more or less my own implementation and far from beeing Fsharp/functional idiomatic. Working on this...
 Front-end is using [Feliz Bulma](https://github.com/Dzoukr/Feliz.Bulma). But to be honest I have very little knowledge of web front-ends. Working on this too...
 
+![Todo](https://user-images.githubusercontent.com/4339172/101386936-19a33480-38be-11eb-8aed-f16dd7d3923b.gif)
 
 ## Requirements
 

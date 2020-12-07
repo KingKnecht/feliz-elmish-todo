@@ -125,7 +125,7 @@ let update (msg: UndoMsg) (undoState: UndoState): UndoState =
                           else
                             t) },
                Meta.new' ""))
-      | SaveTodo (id, description) -> 
+      | SaveTodo (id, description) ->
           UndoList.push
             undoState
             (Visible
