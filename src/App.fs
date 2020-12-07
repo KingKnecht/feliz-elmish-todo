@@ -110,13 +110,26 @@ let update (msg: UndoMsg) (undoState: UndoState): UndoState =
                             { t with IsEditing = false }) },
                Meta.new' "Edit Todo"))
 
-
-      | SaveTodo (id, description) -> //Todo: Not saving when unchanged
+      | SaveTodo (id, description) when (description = (state.TodoList |> List.find (fun t -> t.Id = id)).OldDescription) -> //Don't save unchanged edits.
+          UndoList.push
+            undoState
+            (Invisible
+              ({ state with
+                   TodoList =
+                     state.TodoList
+                     |> List.map (fun t ->
+                          if t.Id = id then
+                            { t with
+                                IsEditing = false
+                                Description = description }
+                          else
+                            t) },
+               Meta.new' ""))
+      | SaveTodo (id, description) -> 
           UndoList.push
             undoState
             (Visible
               ({ state with
-
                    TodoList =
                      state.TodoList
                      |> List.map (fun t ->
@@ -190,7 +203,7 @@ let inputField (state: UndoState) (dispatch: UndoMsg -> unit) =
             prop.onClick (fun _ -> subDispatch AddNewTodo)
             prop.children [
               Html.i [
-                prop.classes [FA.Fa; FA.FaPlus ]
+                prop.classes [ FA.Fa; FA.FaPlus ]
               ]
             ]
           ]
