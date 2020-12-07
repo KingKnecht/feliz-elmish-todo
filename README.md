@@ -1,17 +1,16 @@
-# Feliz Template
+## Todo List with Undo/Redo
 
-This template gets you up and running with a simple web app using [Fable](http://fable.io/), [Elmish](https://fable-elmish.github.io/) and [Feliz](https://github.com/Zaid-Ajaj/Feliz).
+Todo list with undo/redo functionality including non persistent updates (e.g. when writing in an input box) and transactions for bulk edits.
+Todo list is taken from the great book [The Elmish Book](https://zaid-ajaj.github.io/the-elmish-book/#/).
+
+UndoList is more or less my own implementation and far from beeing Fsharp/functional idiomatic. Working on this...
+Front-end is using [Feliz Bulma](https://github.com/Dzoukr/Feliz.Bulma). But to be honest I have very little knowledge of web front-ends. Working on this too...
+
 
 ## Requirements
 
 * [dotnet SDK](https://www.microsoft.com/net/download/core) 2.0.0 or higher
 * [node.js](https://nodejs.org) 10.0.0 or higher
-
-
-## Editor
-
-To write and edit your code, you can use either VS Code + [Ionide](http://ionide.io/), Emacs with [fsharp-mode](https://github.com/fsharp/emacs-fsharp-mode), [Rider](https://www.jetbrains.com/rider/) or Visual Studio.
-
 
 ## Development
 
