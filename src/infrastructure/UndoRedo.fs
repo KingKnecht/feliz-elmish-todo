@@ -2,22 +2,11 @@ namespace UndoRedo
 
 open System
 
-type TransactionMeta = TransactionMeta of string
 
-module TransactionMeta =
-  let unwrap (TransactionMeta m) = m
-
-type Meta = { Description: string; Id: Guid }
-
-module Meta =
-  let new' description =
-    { Description = description
-      Id = Guid.NewGuid() }
-
-type Mark<'T> =
-  | Past of 'T * Meta
-  | Present of 'T * Meta
-  | Future of 'T * Meta
+type Mark<'T, 'M> =
+  | Past of 'T * 'M
+  | Present of 'T * 'M
+  | Future of 'T * 'M
 
 type StateType<'T> =
   | Visible of 'T
@@ -46,13 +35,12 @@ type UndoMsg<'Msg> =
   | CancelTransaction
   | Msg of 'Msg
 
-type UndoList<'T> =
-  { Past: ('T * Meta) list
-    Present: StateType<('T * Meta)>
-    Future: ('T * Meta) list
-    Transaction: (('T * Meta) * TransactionMeta) option
-    Temp: ('T * Meta) option } //Latest element is always last item in list.
-
+type UndoList<'T, 'M> =
+  { Past: ('T * 'M) list //FYI: Latest element is always the first item in list.
+    Present: StateType<('T * 'M)>
+    Future: ('T * 'M) list //FYI: Latest element is always last item in list.
+    Transaction: (('T * 'M) * 'M) option
+    Temp: ('T * 'M) option } 
 
 module UndoList =
 
@@ -109,11 +97,9 @@ module UndoList =
                 Temp = None }
     | Invisible s -> { ul with Temp = Some(s) }
 
-  //Past  Pres Future
-  //[3;2;1] v(4) [] -> Past[2;1]; Present 3; Future [4]
-  //[3;2;1] t(4) [] -> Past[2;1]; Present 3; Future [4]
-  //[3;2;1] i(4) [] -> Past[2;1]; Present 3; Future []
-
+  //Past     Present Future
+  //[3;2;1]  [4]     [5;6]
+  
   let undo ul =
     let innerUndo ul =
       { ul with
@@ -125,12 +111,8 @@ module UndoList =
     | Invisible _ -> ul |> forgetPresent |> innerUndo
     | Visible _ -> ul |> innerUndo
 
-
-  //Past  Pres Future
-  //[1] v(2) [3;4] -> Past[2;1]; Present 3; Future [4]
-  //[1] t(2) [3;4] -> Past[2;1]; Present 3; Future [4]
-  //[1] i(5) [3;4] -> Past[1]; Present 5; Future []
-
+    //Past     Present Future
+    //[3;2;1]  [4]     [5;6]
   let redo ul =
     match ul.Present with
     | Invisible _ ->
@@ -150,19 +132,15 @@ module UndoList =
       Transaction = None
       Temp = None }
 
-  let startTransaction ul description =
+  let startTransaction ul meta =
     match ul.Transaction with
     | Some t -> ul
     | None ->
         { ul with
-            Transaction = Some((ul.Present |> StateType.unwrap), TransactionMeta(description)) }
+            Transaction = Some((ul.Present |> StateType.unwrap), meta) }
 
   let endTransaction ul =
     let oldMeta = ul.Present |> StateType.meta
-
-    let newMeta (tm: TransactionMeta) =
-      { oldMeta with
-          Description = tm |> TransactionMeta.unwrap }
 
     match ul.Transaction with
     | Some t ->
@@ -171,7 +149,7 @@ module UndoList =
 
         { ul with
             Past = (ul.Present |> StateType.unwrap) :: ul.Past //FYI: Latest state is always first element in the past list.
-            Present = Visible(tState, tm |> newMeta)
+            Present = Visible(tState, tm)
             Future = []
             Transaction = None
             Temp = None }

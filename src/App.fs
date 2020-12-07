@@ -42,18 +42,24 @@ let init (): State =
     NewTodo = ""
     Id = Guid.NewGuid() }
 
+type Meta = {
+  Description : string
+}
 
-type UndoState = UndoRedo.UndoList<State>
+module Meta = 
+  let new' description : Meta =  {Description = description}
+
+type UndoState = UndoRedo.UndoList<State, Meta>
 type UndoMsg = UndoRedo.UndoMsg<Msg>
 
-let undoInit () =
-  UndoList.new' (init (), Meta.new' "Init")
+let undoInit () : (UndoState) =
+  UndoList.new' (init (), (Meta.new' "Init"))
 
 let update (msg: UndoMsg) (undoState: UndoState): UndoState =
   match msg with
   | Undo -> UndoList.undo undoState
   | Redo -> UndoList.redo undoState
-  | StartTransaction -> UndoList.startTransaction undoState "Bulk edit"
+  | StartTransaction -> UndoList.startTransaction undoState (Meta.new' "Bulk edit")
   | EndTransaction -> UndoList.endTransaction undoState
   | CancelTransaction -> UndoList.cancelTransaction undoState
   | Msg subMsg ->
