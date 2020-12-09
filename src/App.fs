@@ -67,7 +67,7 @@ let update (msg: UndoMsg) (undoState: UndoState): UndoState =
   | Msg subMsg ->
       let state = undoState |> UndoList.presentState
       match subMsg with
-      | SetNewTodo str -> UndoList.pushT undoState ({ state with NewTodo = str }, Meta.new' "SetNewUndo")
+      | SetNewTodo str -> UndoList.set undoState ({ state with NewTodo = str }, Meta.new' "SetNewUndo")
       | AddNewTodo when state.NewTodo = "" -> undoState
       | AddNewTodo ->
           UndoList.push
@@ -101,7 +101,7 @@ let update (msg: UndoMsg) (undoState: UndoState): UndoState =
              Meta.new' "Delete Todo")
 
       | EditTodo id ->
-          UndoList.pushT
+          UndoList.set
             undoState
 
             ({ state with
@@ -118,7 +118,7 @@ let update (msg: UndoMsg) (undoState: UndoState): UndoState =
              Meta.new' "Edit Todo")
 
       | SaveTodo (id, description) when (description = (state.TodoList |> List.find (fun t -> t.Id = id)).OldDescription) -> //Don't save unchanged edits.
-          UndoList.pushT
+          UndoList.set
             undoState
 
             ({ state with
@@ -149,7 +149,7 @@ let update (msg: UndoMsg) (undoState: UndoState): UndoState =
              Meta.new' "Save edited Todo")
 
       | SetDescription (id, description) ->
-          UndoList.pushT
+          UndoList.set
             undoState
             ({ state with
                  TodoList =
@@ -159,9 +159,10 @@ let update (msg: UndoMsg) (undoState: UndoState): UndoState =
 
       | SetPresent id ->
           undoState
-          |> UndoList.trySetBy (fun e ->
-               let (_, m) = e |> Mark.unwrap
+          |> UndoList.trySetPresentBy (fun e ->
+               let (_, m) = e |> Tenses.unwrap
                m.Id = id)
+             
 
 // Render stuff
 //
