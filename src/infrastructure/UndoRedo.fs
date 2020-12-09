@@ -15,23 +15,15 @@ module Mark =
     | Present (t, m)
     | Future (t, m) -> t, m
 
-type StateType<'T> =
-  | Visible of 'T
-  | Invisible of 'T
-
 module StateType =
 
-  let unwrap s =
-    match s with
-    | Visible (t, m) -> t, m
-    | Invisible (t, m) -> t, m
 
   let state s =
-    let (t, m) = s |> unwrap
+    let (t, m) = s
     t
 
   let meta s =
-    let (t, m) = s |> unwrap
+    let (t, m) = s
     m
 
 type UndoMsg<'Msg> =
@@ -45,19 +37,12 @@ type UndoMsg<'Msg> =
 
 type UndoList<'T, 'M> =
   { Past: ('T * 'M) list
-    Present: StateType<('T * 'M)>
+    Present: ('T * 'M)
     Future: ('T * 'M) list
     Transaction: (('T * 'M) * 'M) option
     Temp: ('T * 'M) option }
 
 module UndoList =
-
-  let (|IsVisible|) value =
-    match value with
-    | Visible (_) -> true
-    | Invisible (_) -> false
-
-  let private firstVisible lst = lst |> List.find (|IsVisible|)
 
   let presentState ul =
     match ul.Temp with
@@ -67,42 +52,34 @@ module UndoList =
     | None ->
         match ul.Transaction with
         | None ->
-            let (s, _) = StateType.unwrap ul.Present
+            let (s, _) = ul.Present
             s
         | Some t ->
             let (s, _) = t
             s |> fst
 
-
-  let visiblePresentMeta ul =
-    match ul.Present with
-    | Invisible (_) -> None
-    | _ ->
-        let (_, m) = StateType.unwrap ul.Present
-        Some(m)
-
   let private forgetPresent ul =
     //Todo: Check list empty
     { ul with
-        Present = Visible(ul.Past |> List.head)
+        Present = ul.Past |> List.head
         Past = ul.Past.Tail }
 
   let push ul state =
-    match state with
-    | Visible s ->
-        match ul.Transaction with
+     match ul.Transaction with
         | Some t ->
             let transactioMeta = t |> snd
             { ul with
-                Transaction = Some(s, transactioMeta)
+                Transaction = Some(state, transactioMeta)
                 Temp = None }
         | None ->
             { ul with
-                Past = (ul.Present |> StateType.unwrap) :: ul.Past //FYI: Latest state is always first element in the past list.
+                Past = ul.Present :: ul.Past //FYI: Latest state is always first element in the past list.
                 Present = state
                 Future = []
                 Temp = None }
-    | Invisible s -> { ul with Temp = Some(s) }
+ 
+  let pushT ul state = { ul with Temp = Some(state) }
+
 
   //Past     Present Future
   //[3;2;1]  [4]     [5;6]
@@ -111,30 +88,22 @@ module UndoList =
     let innerUndo ul =
       { ul with
           Past = ul.Past |> List.tail
-          Present = Visible(ul.Past |> List.head)
-          Future = [ (ul.Present |> StateType.unwrap) ] @ ul.Future }
+          Present = ul.Past |> List.head
+          Future = [ ul.Present ] @ ul.Future }
 
-    match ul.Present with
-    | Invisible _ -> ul |> forgetPresent |> innerUndo
-    | Visible _ -> ul |> innerUndo
+    innerUndo ul
 
   //Past     Present Future
   //[3;2;1]  [4]     [5;6]
   let redo ul =
-    match ul.Present with
-    | Invisible _ ->
         { ul with
-            Past = ul.Past |> List.tail
-            Present = Visible(ul.Past |> List.head) }
-    | Visible _ ->
-        { ul with
-            Past = (ul.Present |> StateType.unwrap) :: ul.Past
-            Present = Visible(ul.Future |> List.head)
+            Past = ul.Present  :: ul.Past
+            Present = ul.Future |> List.head
             Future = ul.Future |> List.tail }
 
   let new' present =
     { Past = List.empty
-      Present = Visible(present)
+      Present = present
       Future = List.Empty
       Transaction = None
       Temp = None }
@@ -144,19 +113,17 @@ module UndoList =
     | Some t -> ul
     | None ->
         { ul with
-            Transaction = Some((ul.Present |> StateType.unwrap), meta) }
+            Transaction = Some(ul.Present, meta) }
 
   let endTransaction ul =
-    let oldMeta = ul.Present |> StateType.meta
-
     match ul.Transaction with
     | Some t ->
         let (_, tm) = t
         let ((tState, _), _) = t
 
         { ul with
-            Past = (ul.Present |> StateType.unwrap) :: ul.Past //FYI: Latest state is always first element in the past list.
-            Present = Visible(tState, tm)
+            Past = ul.Present :: ul.Past //FYI: Latest state is always first element in the past list.
+            Present = tState, tm
             Future = []
             Transaction = None
             Temp = None }
@@ -164,19 +131,18 @@ module UndoList =
 
   let cancelTransaction ul =
     match ul.Transaction with
-    | Some t -> { ul with Transaction = None }
+    | Some _ -> { ul with Transaction = None }
     | None -> ul
 
+  //Todo: kill use List.empty
   let hasPast ul =
     match ul.Past with
     | [] -> false
     | _ -> true
 
-  let canUndo ul =
-    match ul.Present with
-    | Invisible (_) -> ul.Past |> List.length > 1
-    | _ -> ul |> hasPast
+  let canUndo ul = ul |>  hasPast
 
+  //Todo: kill use List.empty
   let hasFuture ul =
     match ul.Future with
     | [] -> false
@@ -188,28 +154,13 @@ module UndoList =
 
   let toTimedList ul =
 
-    let presentToList p =
-      match p with
-      | Visible t -> [ t ]
-      | Invisible _ -> []
-
+    let presentToList p = [p] //Todo: kill
+      
     let pastAndPresent ul =
-      match ul.Present with
-      | Invisible _ ->
-          match ul.Past with
-          | [] -> []
-          | [ x ] -> [ (x |> Present) ]
-          | x :: xs ->
-              (xs |> List.rev |> List.map Past)
-              @ ([ ul.Past |> List.head |> Present ])
-      | Visible _ ->
           (ul.Past |> List.rev |> List.map Past)
-          @ ([ ul.Present |> StateType.unwrap |> Present ])
-
+          @ ([ ul.Present |> Present ])
     (ul |> pastAndPresent)
     @ (ul.Future |> List.map Future)
-
-
 
   let trySetBy f ul =
     
@@ -236,5 +187,5 @@ module UndoList =
         let (lst1, lst2) = timedList |> List.map Mark.unwrap  |> splitListAt newPresentState
         { ul with
             Past = lst1 |> List.rev
-            Present = Visible(newPresentState)
+            Present = newPresentState
             Future = lst2 } 

@@ -67,18 +67,19 @@ let update (msg: UndoMsg) (undoState: UndoState): UndoState =
   | Msg subMsg ->
       let state = undoState |> UndoList.presentState
       match subMsg with
-      | SetNewTodo str -> UndoList.push undoState (Invisible({ state with NewTodo = str }, Meta.new' "SetNewUndo"))
+      | SetNewTodo str -> UndoList.pushT undoState ({ state with NewTodo = str }, Meta.new' "SetNewUndo")
       | AddNewTodo when state.NewTodo = "" -> undoState
       | AddNewTodo ->
           UndoList.push
             undoState
-            (Visible
-              ({ state with
-                   TodoList = List.append state.TodoList [ Todo.NewTodo state.NewTodo ]
-                   NewTodo = "" },
-               Meta.new' "Add Todo"))
+
+            ({ state with
+                 TodoList = List.append state.TodoList [ Todo.NewTodo state.NewTodo ]
+                 NewTodo = "" },
+             Meta.new' "Add Todo")
+
       | ToggleCompleted id ->
-          let toggleIfSame (todo:Todo) =
+          let toggleIfSame (todo: Todo) =
             if id = todo.Id then
               { todo with
                   Completed = not todo.Completed }
@@ -87,79 +88,75 @@ let update (msg: UndoMsg) (undoState: UndoState): UndoState =
 
           UndoList.push
             undoState
-            (Visible
-              ({ state with
-                   TodoList = List.map toggleIfSame state.TodoList },
-               Meta.new' "Toggle Todo"))
+            ({ state with
+                 TodoList = List.map toggleIfSame state.TodoList },
+             Meta.new' "Toggle Todo")
 
       | DeleteTodo id ->
           UndoList.push
             undoState
 
-            (Visible
-              ({ state with
-                   TodoList = List.filter (fun t -> t.Id <> id) state.TodoList },
-               Meta.new' "Delete Todo"))
+            ({ state with
+                 TodoList = List.filter (fun t -> t.Id <> id) state.TodoList },
+             Meta.new' "Delete Todo")
 
       | EditTodo id ->
-          UndoList.push
+          UndoList.pushT
             undoState
-            (Invisible
-              ({ state with
 
-                   TodoList =
-                     state.TodoList
-                     |> List.map (fun t ->
-                          if t.Id = id then
-                            { t with
-                                IsEditing = true
-                                OldDescription = t.Description }
-                          else
-                            { t with IsEditing = false }) },
-               Meta.new' "Edit Todo"))
+            ({ state with
+
+                 TodoList =
+                   state.TodoList
+                   |> List.map (fun t ->
+                        if t.Id = id then
+                          { t with
+                              IsEditing = true
+                              OldDescription = t.Description }
+                        else
+                          { t with IsEditing = false }) },
+             Meta.new' "Edit Todo")
 
       | SaveTodo (id, description) when (description = (state.TodoList |> List.find (fun t -> t.Id = id)).OldDescription) -> //Don't save unchanged edits.
-          UndoList.push
+          UndoList.pushT
             undoState
-            (Invisible
-              ({ state with
-                   TodoList =
-                     state.TodoList
-                     |> List.map (fun t ->
-                          if t.Id = id then
-                            { t with
-                                IsEditing = false
-                                Description = description }
-                          else
-                            t) },
-               Meta.new' ""))
+
+            ({ state with
+                 TodoList =
+                   state.TodoList
+                   |> List.map (fun t ->
+                        if t.Id = id then
+                          { t with
+                              IsEditing = false
+                              Description = description }
+                        else
+                          t) },
+             Meta.new' "")
       | SaveTodo (id, description) ->
           UndoList.push
             undoState
-            (Visible
-              ({ state with
-                   TodoList =
-                     state.TodoList
-                     |> List.map (fun t ->
-                          if t.Id = id then
-                            { t with
-                                IsEditing = false
-                                Description = description }
-                          else
-                            t) },
-               Meta.new' "Save edited Todo"))
+
+            ({ state with
+                 TodoList =
+                   state.TodoList
+                   |> List.map (fun t ->
+                        if t.Id = id then
+                          { t with
+                              IsEditing = false
+                              Description = description }
+                        else
+                          t) },
+             Meta.new' "Save edited Todo")
 
       | SetDescription (id, description) ->
-          UndoList.push
+          UndoList.pushT
             undoState
-            (Invisible
-              ({ state with
+            ({ state with
+                 TodoList =
+                   state.TodoList
+                   |> List.map (fun t -> if t.Id = id then { t with Description = description } else t) },
+             Meta.new' "Set Description")
 
-                   TodoList =
-                     state.TodoList
-                     |> List.map (fun t -> if t.Id = id then { t with Description = description } else t) },
-               Meta.new' "Set Description"))
- 
       | SetPresent id ->
           undoState
           |> UndoList.trySetBy (fun e ->
