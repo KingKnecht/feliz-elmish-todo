@@ -1,6 +1,6 @@
 ## Todo List with Undo/Redo
 
-Todo list with undo/redo functionality including non persistent updates (e.g. when writing to an input box) and transactions for bulk edits.
+Todo list with undo/redo functionality including non persistent updates (e.g. when writing to an input box), transactions for bulk edits and jumping directly to a present state.
 Todo list is taken from the great book [The Elmish Book](https://zaid-ajaj.github.io/the-elmish-book/#/).
 
 UndoList is more or less my own implementation and far from being Fsharp/functional idiomatic. Working on this...

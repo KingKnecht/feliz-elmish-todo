@@ -165,6 +165,7 @@ module UndoList =
 
     //Splits a list at the found element e, where all elements left from e are in lst1 and all other elements in lst2.
     //Element e is removed.
+    //splitListAt "c" ["a";"b";"c";"d";"e";"f"] -> (["a";"b"], ["d";"e";"f"])
     let splitListAt e (list: 'a list): ('a list * 'a list) =
       let mutable lst1 = []
       let mutable lst2 = []
