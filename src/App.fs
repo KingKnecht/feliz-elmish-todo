@@ -487,7 +487,3 @@ let render (state: UndoState) (dispatch: UndoMsg -> unit) =
       ]
     ]
   ]
-
-// Program.mkSimple undoInit update render
-// |> Program.withReactSynchronous "elmish-app"
-// |> Program.run

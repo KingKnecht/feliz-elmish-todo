@@ -8,7 +8,6 @@ type Tenses<'T, 'M> =
   | Present of 'T * 'M
   | Future of 'T * 'M
 
-
 module Tenses =
   let unwrap m =
     match m with
@@ -50,9 +49,6 @@ type UndoList<'T, 'M> =
     Temp: ('T * 'M) option }
 
 module UndoList =
-
-
-
   let presentState ul =
     match ul.Temp with
     | Some t ->
@@ -203,12 +199,3 @@ module UndoList =
             Past = lst1 |> List.rev
             Present = newPresentState
             Future = lst2 }
-
-  // let update updater wrapperMessage undolist =
-  //   match wrapperMessage with
-  //   |Undo -> undolist |> redo
-  //   | Redo -> undolist |> redo
-  //   | StartTransaction -> undolist |> startTransaction
-  //   | EndTransaction
-  //   | CancelTransaction
-  //   | Msg of 'Msg
