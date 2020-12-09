@@ -65,6 +65,7 @@ module UndoList =
             let (s, _) = t
             s |> fst
 
+  //Add a persistent state to the present.
   let push ul state =
     match ul.Transaction with
     | Some t ->
@@ -78,7 +79,7 @@ module UndoList =
             Present = state
             Future = []
             Sink = None }
-
+  //Add a non-persistent state to the sink.
   let set ul state = { ul with Sink = Some(state) }
 
   //Past Present Future
