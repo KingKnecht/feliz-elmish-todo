@@ -41,16 +41,19 @@ type UndoMsg<'Msg> =
   | CancelTransaction
   | Msg of 'Msg
 
+
 type UndoList<'T, 'M> =
   { Past: ('T * 'M) list
     Present: ('T * 'M)
     Future: ('T * 'M) list
+    //Transaction holds a normal state and meta + extra meta for the transaction it self (e.g. "Bulk edit")
     Transaction: (('T * 'M) * 'M) option
-    Temp: ('T * 'M) option }
+    //Sink is used for non-persistent states. Will never be commited to the list of Past.
+    Sink: ('T * 'M) option }
 
 module UndoList =
   let presentState ul =
-    match ul.Temp with
+    match ul.Sink with
     | Some t ->
         let (s, _) = t
         s
@@ -63,33 +66,24 @@ module UndoList =
             let (s, _) = t
             s |> fst
 
-  let private forgetPresent ul =
-    match ul.Past with
-    | [] -> ul
-    | _ ->
-        { ul with
-            Present = ul.Past |> List.head
-            Past = ul.Past.Tail }
-
   let push ul state =
     match ul.Transaction with
     | Some t ->
         let transactioMeta = t |> snd
         { ul with
             Transaction = Some(state, transactioMeta)
-            Temp = None }
+            Sink = None }
     | None ->
         { ul with
             Past = ul.Present :: ul.Past //FYI: Latest state is always first element in the past list.
             Present = state
             Future = []
-            Temp = None }
+            Sink = None }
 
-  let set ul state = { ul with Temp = Some(state) }
+  let set ul state = { ul with Sink = Some(state) }
 
   //Past     Present Future
-  //[3;2;1]  [4]     [5;6]
-
+  //[3;2;1]  [4]     [5;6] -> [3;2;1]  [3]  [4;5;6]
   let undo ul =
     let innerUndo ul =
       { ul with
@@ -100,7 +94,7 @@ module UndoList =
     innerUndo ul
 
   //Past     Present Future
-  //[3;2;1]  [4]     [5;6]
+  //[3;2;1]  [4]     [5;6] -> [4;3;2;1]  [5]  [;6]
   let redo ul =
     { ul with
         Past = ul.Present :: ul.Past
@@ -112,7 +106,7 @@ module UndoList =
       Present = present
       Future = List.Empty
       Transaction = None
-      Temp = None }
+      Sink = None }
 
   let startTransaction ul meta =
     match ul.Transaction with
@@ -132,7 +126,7 @@ module UndoList =
             Present = tState, tm
             Future = []
             Transaction = None
-            Temp = None }
+            Sink = None }
     | None -> ul
 
   let cancelTransaction ul =

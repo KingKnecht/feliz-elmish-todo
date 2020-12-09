@@ -5,7 +5,6 @@ open Elmish
 open Elmish.React
 open Feliz
 open Feliz.Bulma
-open Feliz.Bulma.Operators
 
 open UndoRedo
 
@@ -103,9 +102,7 @@ let update (msg: UndoMsg) (undoState: UndoState): UndoState =
       | EditTodo id ->
           UndoList.set
             undoState
-
             ({ state with
-
                  TodoList =
                    state.TodoList
                    |> List.map (fun t ->
@@ -120,7 +117,6 @@ let update (msg: UndoMsg) (undoState: UndoState): UndoState =
       | SaveTodo (id, description) when (description = (state.TodoList |> List.find (fun t -> t.Id = id)).OldDescription) -> //Don't save unchanged edits.
           UndoList.set
             undoState
-
             ({ state with
                  TodoList =
                    state.TodoList
@@ -135,7 +131,6 @@ let update (msg: UndoMsg) (undoState: UndoState): UndoState =
       | SaveTodo (id, description) ->
           UndoList.push
             undoState
-
             ({ state with
                  TodoList =
                    state.TodoList
@@ -162,7 +157,7 @@ let update (msg: UndoMsg) (undoState: UndoState): UndoState =
           |> UndoList.trySetPresentBy (fun e ->
                let (_, m) = e |> Tenses.unwrap
                m.Id = id)
-             
+
 
 // Render stuff
 //
@@ -326,9 +321,6 @@ let todoItem (todo: Todo) (dispatch: Msg -> unit) =
       ]
     ]
   ]
-
-
-
 
 let todoList (state: State) (dispatch: Msg -> unit) =
   Html.ul [
