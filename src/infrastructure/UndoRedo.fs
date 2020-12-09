@@ -8,6 +8,13 @@ type Mark<'T, 'M> =
   | Present of 'T * 'M
   | Future of 'T * 'M
 
+module Mark =
+  let unwrap m =
+    match m with
+    | Past (t, m)
+    | Present (t, m)
+    | Future (t, m) -> t, m
+
 type StateType<'T> =
   | Visible of 'T
   | Invisible of 'T
@@ -35,12 +42,13 @@ type UndoMsg<'Msg> =
   | CancelTransaction
   | Msg of 'Msg
 
+
 type UndoList<'T, 'M> =
-  { Past: ('T * 'M) list //FYI: Latest element is always the first item in list.
+  { Past: ('T * 'M) list
     Present: StateType<('T * 'M)>
-    Future: ('T * 'M) list //FYI: Latest element is always last item in list.
+    Future: ('T * 'M) list
     Transaction: (('T * 'M) * 'M) option
-    Temp: ('T * 'M) option } 
+    Temp: ('T * 'M) option }
 
 module UndoList =
 
@@ -79,15 +87,14 @@ module UndoList =
         Present = Visible(ul.Past |> List.head)
         Past = ul.Past.Tail }
 
-
   let push ul state =
     match state with
     | Visible s ->
         match ul.Transaction with
         | Some t ->
+            let transactioMeta = t |> snd
             { ul with
-                //Present = state
-                Transaction = Some(s, t |> snd)
+                Transaction = Some(s, transactioMeta)
                 Temp = None }
         | None ->
             { ul with
@@ -99,7 +106,7 @@ module UndoList =
 
   //Past     Present Future
   //[3;2;1]  [4]     [5;6]
-  
+
   let undo ul =
     let innerUndo ul =
       { ul with
@@ -111,8 +118,8 @@ module UndoList =
     | Invisible _ -> ul |> forgetPresent |> innerUndo
     | Visible _ -> ul |> innerUndo
 
-    //Past     Present Future
-    //[3;2;1]  [4]     [5;6]
+  //Past     Present Future
+  //[3;2;1]  [4]     [5;6]
   let redo ul =
     match ul.Present with
     | Invisible _ ->
@@ -180,6 +187,7 @@ module UndoList =
   let isTransactionRunning ul = ul.Transaction |> Option.isSome
 
   let toTimedList ul =
+
     let presentToList p =
       match p with
       | Visible t -> [ t ]
@@ -200,3 +208,33 @@ module UndoList =
 
     (ul |> pastAndPresent)
     @ (ul.Future |> List.map Future)
+
+
+
+  let trySetBy f ul =
+    
+    let splitListAt e (list: 'a list) : ('a list * 'a list) =
+      let mutable lst1 = []
+      let mutable lst2 = []
+      let mutable found = false
+      for i in list do
+        if found then
+          lst2 <- i :: lst2
+        else
+          if i = e then
+           found <- true
+          else
+            lst1 <- i :: lst1
+      (lst1 |> List.rev,lst2 |> List.rev)
+    
+    let timedList = ul |> toTimedList
+  
+    match timedList |> List.tryFind f with
+    | None -> ul
+    | Some foundPresent ->
+        let newPresentState = foundPresent |> Mark.unwrap
+        let (lst1, lst2) = timedList |> List.map Mark.unwrap  |> splitListAt newPresentState
+        { ul with
+            Past = lst1 |> List.rev
+            Present = Visible(newPresentState)
+            Future = lst2 } 

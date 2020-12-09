@@ -36,23 +36,25 @@ type Msg =
   | EditTodo of Guid
   | SaveTodo of Guid * string
   | SetDescription of Guid * string
+  | SetPresent of Guid
+
 
 let init (): State =
   { TodoList = [ Todo.NewTodo "Learn Elmish" ]
     NewTodo = ""
     Id = Guid.NewGuid() }
 
-type Meta = {
-  Description : string
-}
+type Meta = { Description: string; Id: Guid }
 
-module Meta = 
-  let new' description : Meta =  {Description = description}
+module Meta =
+  let new' description: Meta =
+    { Description = description
+      Id = Guid.NewGuid() }
 
 type UndoState = UndoRedo.UndoList<State, Meta>
 type UndoMsg = UndoRedo.UndoMsg<Msg>
 
-let undoInit () : (UndoState) =
+let undoInit (): UndoState =
   UndoList.new' (init (), (Meta.new' "Init"))
 
 let update (msg: UndoMsg) (undoState: UndoState): UndoState =
@@ -76,7 +78,7 @@ let update (msg: UndoMsg) (undoState: UndoState): UndoState =
                    NewTodo = "" },
                Meta.new' "Add Todo"))
       | ToggleCompleted id ->
-          let toggleIfSame todo =
+          let toggleIfSame (todo:Todo) =
             if id = todo.Id then
               { todo with
                   Completed = not todo.Completed }
@@ -157,7 +159,13 @@ let update (msg: UndoMsg) (undoState: UndoState): UndoState =
                      state.TodoList
                      |> List.map (fun t -> if t.Id = id then { t with Description = description } else t) },
                Meta.new' "Set Description"))
-//
+ 
+      | SetPresent id ->
+          undoState
+          |> UndoList.trySetBy (fun e ->
+               let (_, m) = e |> Mark.unwrap
+               m.Id = id)
+
 // Render stuff
 //
 let appTitle =
@@ -332,7 +340,7 @@ let todoList (state: State) (dispatch: Msg -> unit) =
   ]
 
 let undoList (state: UndoState) (dispatch: UndoMsg -> unit) =
-
+  let subDispatch msg = (dispatch (Msg msg))
   Bulma.panel [
     //prop.style [ style.marginLeft 0 ]
     prop.children [
@@ -344,7 +352,10 @@ let undoList (state: UndoState) (dispatch: UndoMsg -> unit) =
         match e with
         | Past (s, m) ->
             Bulma.panelBlock.a [
-              Html.text (m.Description + " (past)")
+              prop.onClick (fun _ -> m.Id |> (SetPresent >> subDispatch))
+              prop.children [
+                Html.text (m.Description + " (past)")
+              ]
             ]
         | Present (s, m) ->
             Html.div [
@@ -358,7 +369,10 @@ let undoList (state: UndoState) (dispatch: UndoMsg -> unit) =
             ]
         | Future (s, m) ->
             Bulma.panelBlock.a [
-              Html.text (m.Description + " (future)")
+              prop.onClick (fun _ -> m.Id |> (SetPresent >> subDispatch))
+              prop.children [
+                Html.text (m.Description + " (future)")
+              ]
             ]
     ]
   ]
