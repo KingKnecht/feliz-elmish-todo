@@ -2,7 +2,6 @@ namespace UndoRedo
 
 open System
 
-
 type Tenses<'T, 'M> =
   | Past of 'T * 'M
   | Present of 'T * 'M
@@ -82,19 +81,16 @@ module UndoList =
 
   let set ul state = { ul with Sink = Some(state) }
 
-  //Past     Present Future
-  //[3;2;1]  [4]     [5;6] -> [3;2;1]  [3]  [4;5;6]
+  //Past Present Future
+  //[3;2;1] [4] [5;6] -> [3;2;1]  [3]  [4;5;6]
   let undo ul =
-    let innerUndo ul =
-      { ul with
-          Past = ul.Past |> List.tail
-          Present = ul.Past |> List.head
-          Future = [ ul.Present ] @ ul.Future }
+    { ul with
+        Past = ul.Past |> List.tail
+        Present = ul.Past |> List.head
+        Future = [ ul.Present ] @ ul.Future }
 
-    innerUndo ul
-
-  //Past     Present Future
-  //[3;2;1]  [4]     [5;6] -> [4;3;2;1]  [5]  [;6]
+  //Past Present Future
+  //[3;2;1] [4] [5;6] -> [4;3;2;1] [5] [6]
   let redo ul =
     { ul with
         Past = ul.Present :: ul.Past
@@ -166,6 +162,8 @@ module UndoList =
 
   let trySetPresentBy f ul =
 
+    //Splits a list at the found element e, where all elements left from e are in lst1 and all other elements in lst2.
+    //Element e is removed.
     let splitListAt e (list: 'a list): ('a list * 'a list) =
       let mutable lst1 = []
       let mutable lst2 = []
@@ -177,8 +175,8 @@ module UndoList =
       (lst1 |> List.rev, lst2 |> List.rev)
 
     let timedList = ul |> toTimedList
-
     let findResult = timedList |> List.tryFind f
+
     match findResult with
     | None -> ul
     | Some foundPresent ->
